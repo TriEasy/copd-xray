@@ -254,10 +254,7 @@ def home():
         // ── Severity ──────────────────────────────────────────────────────────
         const sevIds = ["fev1","fev1pred","fvc","fvcpred","packhist","mwt1best","cat","had","sgrq","gender","smoking"];
         const missing = sevIds.filter(id => document.getElementById(id).value === "");
-        document.getElementById("severityRow").style.display = "block";
-        document.getElementById("severityLabel").innerText = "debug";
-        document.getElementById("severityScores").innerHTML =
-          "missing " + missing.length + ": [" + missing.join(", ") + "]";
+        document.getElementById("severityRow").style.display = "none";
         if (missing.length === 0) {
           const sevBody = {
             AGE:          parseFloat(document.getElementById("age").value) || 0,
