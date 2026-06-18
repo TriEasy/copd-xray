@@ -1,0 +1,30 @@
+﻿# Secrets
+.env
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Large model weights (download separately)
+*.pth
+notebooks/saved_models/
+
+# ChromaDB vector database (rebuild with: python scripts/seed_gold_db.py)
+gold_db/
+src/gold_db/
+
+# Large data files
+data/GOLD-2025.pdf
+
+# Jupyter checkpoints
+.ipynb_checkpoints/
+
+# OS
+.DS_Store
+Thumbs.db
