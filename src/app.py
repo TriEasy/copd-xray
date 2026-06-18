@@ -116,7 +116,7 @@ def home():
   </div>
 
   <br>
-  <details style="margin-top:20px;background:white;padding:16px;border-radius:10px;max-width:780px">
+  <details open style="margin-top:20px;background:white;padding:16px;border-radius:10px;max-width:780px">
     <summary style="cursor:pointer;font-weight:bold;color:#2c7be5">Severity Assessment <span style="font-size:12px;color:#aaa;font-weight:normal">(optional — fill in for severity prediction in report)</span></summary>
     <div style="display:flex;gap:30px;flex-wrap:wrap;margin-top:14px">
       <div>
@@ -181,6 +181,11 @@ def home():
       <div class="prediction" id="predLabel"></div>
       <div class="confidence" id="predConf"></div>
       <div class="scores" id="predScores"></div>
+      <div id="severityRow" style="display:none;margin-top:10px;border-top:1px solid #eee;padding-top:8px">
+        <div style="font-size:12px;color:#888;margin-bottom:2px">Severity</div>
+        <div class="prediction" id="severityLabel" style="font-size:18px"></div>
+        <div class="scores" id="severityScores"></div>
+      </div>
     </div>
     <div class="box">
       <h3>Grad-CAM</h3>
@@ -211,33 +216,93 @@ def home():
       document.getElementById("status").innerText = "Analyzing...";
       document.getElementById("results").style.display = "none";
 
-      document.getElementById("originalImg").src = URL.createObjectURL(file);
+      try {
+        document.getElementById("originalImg").src = URL.createObjectURL(file);
 
-      const fd1 = new FormData(); fd1.append("file", file);
-      const predRes = await fetch("/predict", { method: "POST", body: fd1 });
-      const pred    = await predRes.json();
+        const fd1 = new FormData(); fd1.append("file", file);
+        const predRes = await fetch("/predict", { method: "POST", body: fd1 });
+        if (!predRes.ok) {
+          const err = await predRes.text();
+          document.getElementById("status").innerText = "Error " + predRes.status + ": " + err;
+          return;
+        }
+        const pred = await predRes.json();
 
-      document.getElementById("predLabel").innerText = pred.prediction;
-      document.getElementById("predConf").innerText  = pred.confidence + "% confidence";
-      document.getElementById("predScores").innerHTML =
-        "Emphysema: " + pred.all_scores.Emphysema + "%<br>" +
-        "Normal: "    + pred.all_scores.Normal    + "%<br>" +
-        "Other: "     + pred.all_scores.Other     + "%";
+        document.getElementById("predLabel").innerText = pred.prediction;
+        document.getElementById("predConf").innerText  = pred.confidence + "% confidence";
+        document.getElementById("predScores").innerHTML =
+          "Emphysema: " + pred.all_scores.Emphysema + "%<br>" +
+          "Normal: "    + pred.all_scores.Normal    + "%<br>" +
+          "Other: "     + pred.all_scores.Other     + "%";
 
-      currentPatient =
-        "Diagnosis: "       + pred.prediction + "\n" +
-        "Confidence: "      + pred.confidence + "%\n" +
-        "Class probabilities — Emphysema: " + pred.all_scores.Emphysema +
-        "%, Normal: "       + pred.all_scores.Normal +
-        "%, Other: "        + pred.all_scores.Other  + "%";
+        currentPatient =
+          "Diagnosis: " + pred.prediction + " | " +
+          "Confidence: " + pred.confidence + "% | " +
+          "Emphysema: " + pred.all_scores.Emphysema +
+          "% Normal: " + pred.all_scores.Normal +
+          "% Other: " + pred.all_scores.Other + "%";
 
-      const fd2 = new FormData(); fd2.append("file", file);
-      const camRes  = await fetch("/gradcam", { method: "POST", body: fd2 });
-      const camBlob = await camRes.blob();
-      document.getElementById("gradcamImg").src = URL.createObjectURL(camBlob);
+        const fd2 = new FormData(); fd2.append("file", file);
+        const camRes = await fetch("/gradcam", { method: "POST", body: fd2 });
+        if (!camRes.ok) {
+          document.getElementById("status").innerText = "Grad-CAM error " + camRes.status;
+          return;
+        }
+        const camBlob = await camRes.blob();
+        document.getElementById("gradcamImg").src = URL.createObjectURL(camBlob);
 
-      document.getElementById("status").innerText = "";
-      document.getElementById("results").style.display = "flex";
+        // ── Severity ──────────────────────────────────────────────────────────
+        const sevIds = ["fev1","fev1pred","fvc","fvcpred","packhist","mwt1best","cat","had","sgrq","gender","smoking"];
+        const missing = sevIds.filter(id => document.getElementById(id).value === "");
+        document.getElementById("severityRow").style.display = "block";
+        document.getElementById("severityLabel").innerText = "debug";
+        document.getElementById("severityScores").innerHTML =
+          "missing " + missing.length + ": [" + missing.join(", ") + "]";
+        if (missing.length === 0) {
+          const sevBody = {
+            AGE:          parseFloat(document.getElementById("age").value) || 0,
+            PackHistory:  parseFloat(document.getElementById("packhist").value),
+            FEV1:         parseFloat(document.getElementById("fev1").value),
+            FEV1PRED:     parseFloat(document.getElementById("fev1pred").value),
+            FVC:          parseFloat(document.getElementById("fvc").value),
+            FVCPRED:      parseFloat(document.getElementById("fvcpred").value),
+            MWT1Best:     parseFloat(document.getElementById("mwt1best").value),
+            CAT:          parseFloat(document.getElementById("cat").value),
+            HAD:          parseFloat(document.getElementById("had").value),
+            SGRQ:         parseFloat(document.getElementById("sgrq").value),
+            gender:       parseInt(document.getElementById("gender").value),
+            smoking:      parseInt(document.getElementById("smoking").value),
+            Diabetes:     document.getElementById("diabetes").checked     ? 1 : 0,
+            muscular:     document.getElementById("muscular").checked     ? 1 : 0,
+            hypertension: document.getElementById("hypertension").checked ? 1 : 0,
+            AtrialFib:    document.getElementById("atrialfib").checked    ? 1 : 0,
+            IHD:          document.getElementById("ihd").checked          ? 1 : 0,
+          };
+          const sevRes = await fetch("/severity/predict", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(sevBody),
+          });
+          if (sevRes.ok) {
+            const sev = await sevRes.json();
+            document.getElementById("severityLabel").innerText = sev.severity;
+            const scores = Object.entries(sev.all_scores)
+              .map(([k, v]) => k + ": " + v + "%").join("<br>");
+            document.getElementById("severityScores").innerHTML = scores;
+            document.getElementById("severityRow").style.display = "block";
+            currentPatient += " | Severity: " + sev.severity;
+          } else {
+            document.getElementById("severityLabel").innerText = "Error";
+            document.getElementById("severityScores").innerHTML =
+              "<span style='color:red;font-size:12px'>Failed (" + sevRes.status + ")</span>";
+          }
+        }
+
+        document.getElementById("status").innerText = "";
+        document.getElementById("results").style.display = "flex";
+      } catch (e) {
+        document.getElementById("status").innerText = "Network error: " + e.message;
+      }
     }
 
     async function generateReport() {
@@ -275,7 +340,12 @@ def home():
         fd.append("IHD",          document.getElementById("ihd").checked          ? "1" : "0");
       }
 
-      const res  = await fetch("/report", { method: "POST", body: fd });
+      const res = await fetch("/report", { method: "POST", body: fd });
+      if (!res.ok) {
+        const err = await res.text();
+        document.getElementById("status").innerText = "Report error " + res.status + ": " + err;
+        return;
+      }
       const blob = await res.blob();
       const url  = URL.createObjectURL(blob);
       const a    = document.createElement("a");
@@ -542,6 +612,29 @@ async def generate_report(
     pdf.image(cam_tmp.name,  x=108, y=img_y, w=78)
     pdf.set_y(img_y + 80)
     pdf.ln(6)
+    pdf.line(20, pdf.get_y(), 190, pdf.get_y())
+    pdf.ln(5)
+
+    # ── Severity assessment ───────────────────────────────────────────────────
+    pdf.set_font("Helvetica", "B", 11)
+    pdf.set_text_color(30, 60, 120)
+    pdf.cell(0, 7, "Severity Assessment", ln=True)
+    pdf.set_text_color(0, 0, 0)
+    pdf.set_font("Helvetica", "", 10)
+    if severity_label:
+        pdf.set_font("Helvetica", "B", 14)
+        pdf.set_text_color(30, 60, 120)
+        pdf.cell(0, 8, str(severity_label), ln=True)
+        pdf.set_text_color(0, 0, 0)
+        pdf.set_font("Helvetica", "", 9)
+        pdf.set_text_color(130, 130, 130)
+        pdf.cell(0, 5, "Based on clinical measurements (FEV1, FVC, CAT, HAD, SGRQ, 6MWT)", ln=True)
+        pdf.set_text_color(0, 0, 0)
+    else:
+        pdf.set_text_color(130, 130, 130)
+        pdf.cell(0, 7, "Not assessed — fill in the Severity Assessment fields before downloading the report.", ln=True)
+        pdf.set_text_color(0, 0, 0)
+    pdf.ln(4)
     pdf.line(20, pdf.get_y(), 190, pdf.get_y())
     pdf.ln(5)
 
