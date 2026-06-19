@@ -13,29 +13,23 @@ interface ChatMsg {
 
 const QUICK_REPLIES = [
   "How do I upload an X-ray?",
-  "What is COPD?",
   "How does severity work?",
   "Is my data private?",
+  "What are GOLD COPD stages?",
+  "How is emphysema treated?",
 ];
 
-const BOT_ANSWERS: Record<string, string> = {
+// Instant answers for app-navigation quick replies (RAG doesn't know the app)
+const QUICK_ANSWERS: Record<string, string> = {
   "How do I upload an X-ray?":
-    "On the Detection page, click the upload area or drag-and-drop your chest X-ray image (JPEG/PNG). Then fill in the patient info and hit Analyze.",
-  "What is COPD?":
-    "COPD (Chronic Obstructive Pulmonary Disease) is a chronic inflammatory lung disease that causes obstructed airflow. It includes emphysema and chronic bronchitis.",
+    "On the Detection page, click the upload area or drag-and-drop your chest X-ray (JPEG/PNG). Fill in the patient info and hit Analyze.",
   "How does severity work?":
-    "After detection, go to the Severity Assessment step. Enter clinical values like FEV1, FVC, and symptoms — the tool calculates your GOLD stage.",
+    "After detection, expand the Severity Assessment section, enter clinical values (FEV1, FVC, CAT score, etc.), then click Analyze — the result appears in the Prediction card.",
   "Is my data private?":
-    "Yes. All analysis is performed locally in your browser session. No images or personal data are stored on external servers.",
+    "Yes. Images and patient data are only sent to the local server for analysis and are never stored permanently.",
+  "What are GOLD COPD stages?":
+    "GOLD COPD stages classify severity using FEV₁ (% predicted):\n\n• GOLD 1 (Mild): FEV₁ ≥ 80%\n• GOLD 2 (Moderate): FEV₁ 50–79%\n• GOLD 3 (Severe): FEV₁ 30–49%\n• GOLD 4 (Very Severe): FEV₁ < 30%\n\nThe lower the FEV₁ %, the more severe the COPD.",
 };
-
-function getBotReply(text: string): string {
-  const key = Object.keys(BOT_ANSWERS).find((k) =>
-    text.toLowerCase().includes(k.toLowerCase().slice(0, 10))
-  );
-  if (key) return BOT_ANSWERS[key];
-  return "I can help with navigation and general COPD questions. For a personalized analysis, please use the Detection and Severity Assessment steps in the workflow above.";
-}
 
 function FloatingDoctor() {
   const [open, setOpen] = useState(false);
@@ -43,26 +37,53 @@ function FloatingDoctor() {
     {
       id: "w",
       role: "bot",
-      text: "Hi! I'm Dr. Aria, your COPD Vision guide. Ask me anything about using this app or COPD in general!",
+      text: "Hi! I'm Dr. Aria. Ask me anything about COPD — diagnosis, treatment, guidelines, or how to use this app!",
     },
   ]);
   const [input, setInput] = useState("");
+  const [isTyping, setIsTyping] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, open]);
+  }, [messages, open, isTyping]);
 
-  function send(text: string) {
-    if (!text.trim()) return;
-    const userMsg: ChatMsg = { id: Date.now().toString(), role: "user", text };
-    const botMsg: ChatMsg = {
-      id: Date.now() + "b",
-      role: "bot",
-      text: getBotReply(text),
-    };
-    setMessages((prev) => [...prev, userMsg, botMsg]);
+  async function send(text: string) {
+    if (!text.trim() || isTyping) return;
     setInput("");
+
+    const userMsg: ChatMsg = { id: Date.now().toString(), role: "user", text };
+    setMessages((prev) => [...prev, userMsg]);
+
+    // Instant answer for app-navigation quick replies
+    if (QUICK_ANSWERS[text]) {
+      setMessages((prev) => [...prev, { id: Date.now() + "b", role: "bot", text: QUICK_ANSWERS[text] }]);
+      return;
+    }
+
+    // Everything else → real RAG call
+    setIsTyping(true);
+    try {
+      const res = await fetch("/rag/ask", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ question: text, k: 3, patient_context: "" }),
+      });
+      const data = await res.json();
+      setMessages((prev) => [...prev, {
+        id: Date.now() + "b",
+        role: "bot",
+        text: data.answer || "Sorry, I could not get an answer right now.",
+      }]);
+    } catch {
+      setMessages((prev) => [...prev, {
+        id: Date.now() + "b",
+        role: "bot",
+        text: "Error: could not reach the server. Make sure the backend is running.",
+      }]);
+    } finally {
+      setIsTyping(false);
+    }
   }
 
   return (
@@ -121,6 +142,15 @@ function FloatingDoctor() {
                 </div>
               </div>
             ))}
+            {isTyping && (
+              <div className="flex justify-start">
+                <div className="bg-white border border-[#dce5f5] rounded-xl px-3 py-2 flex gap-1 items-center">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#6b7aaa] animate-bounce [animation-delay:0s]" />
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#6b7aaa] animate-bounce [animation-delay:0.15s]" />
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#6b7aaa] animate-bounce [animation-delay:0.3s]" />
+                </div>
+              </div>
+            )}
             <div ref={bottomRef} />
           </div>
 
@@ -148,7 +178,7 @@ function FloatingDoctor() {
             />
             <button
               onClick={() => send(input)}
-              disabled={!input.trim()}
+              disabled={!input.trim() || isTyping}
               className="w-8 h-8 rounded-full bg-[#2d3e8f] flex items-center justify-center text-white disabled:opacity-40 hover:bg-[#3d52b5] transition-colors"
             >
               <Send className="w-3.5 h-3.5" />

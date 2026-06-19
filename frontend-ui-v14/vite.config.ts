@@ -33,4 +33,14 @@ export default defineConfig({
 
   // File types to support raw imports. Never add .css, .tsx, or .ts files to this.
   assetsInclude: ['**/*.svg', '**/*.csv'],
+
+  server: {
+    proxy: {
+      '/predict':          'http://localhost:8000',
+      '/gradcam':          'http://localhost:8000',
+      '/report':           'http://localhost:8000',
+      '/severity':         'http://localhost:8000',
+      '/rag':              'http://localhost:8000',
+    },
+  },
 })

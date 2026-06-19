@@ -1,3 +1,13 @@
+---
+title: COPD Vision
+emoji: 🫁
+colorFrom: blue
+colorTo: teal
+sdk: docker
+app_port: 7860
+pinned: false
+---
+
 # COPD Vision
 
 AI-assisted clinical decision support for COPD diagnosis from chest X-rays.

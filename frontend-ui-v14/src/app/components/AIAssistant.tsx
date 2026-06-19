@@ -55,261 +55,15 @@ export function AIAssistant() {
     }
   }, [messages]);
 
-  const generateResponse = (userMessage: string): string => {
-    const lowerMessage = userMessage.toLowerCase();
-
-    // Context-aware responses based on severity level
-    const severityLevel = severityResult?.severity || "Moderate";
-
-    if (lowerMessage.includes("moderate copd") || lowerMessage.includes("what does moderate")) {
-      return `Moderate COPD indicates a stage where airflow limitation is worsening, and symptoms become more noticeable during daily activities. At this stage:
-
-• FEV1 is typically between 50-79% of predicted value
-• You may experience shortness of breath during physical activity
-• Chronic cough and mucus production may be present
-• Regular medical monitoring is essential
-
-Treatment typically includes bronchodilators, pulmonary rehabilitation, and smoking cessation if applicable. It's important to work closely with your healthcare provider to manage symptoms and prevent progression.`;
-    }
-
-    if (lowerMessage.includes("exercise") || lowerMessage.includes("physical activity")) {
-      return `Yes, exercise is actually beneficial for COPD patients! Here's what you should know:
-
-**Benefits:**
-• Improves lung capacity and breathing efficiency
-• Strengthens respiratory muscles
-• Enhances overall cardiovascular health
-• Reduces symptoms and improves quality of life
-
-**Recommended Activities:**
-• Walking (start slow, gradually increase)
-• Swimming or water aerobics
-• Stationary cycling
-• Light strength training
-• Breathing exercises
-
-**Important Tips:**
-• Start slowly and listen to your body
-• Use your prescribed medications before exercise
-• Avoid exercising in extreme temperatures or poor air quality
-• Stop if you experience severe shortness of breath or chest pain
-• Work with a pulmonary rehabilitation program for personalized guidance
-
-Always consult your doctor before starting a new exercise program.`;
-    }
-
-    if (lowerMessage.includes("food") || lowerMessage.includes("diet") || lowerMessage.includes("nutrition")) {
-      return `Nutrition plays an important role in managing COPD. Here are dietary recommendations:
-
-**Foods to Include:**
-• Lean proteins (fish, chicken, eggs)
-• Fresh fruits and vegetables
-• Whole grains
-• Healthy fats (olive oil, avocados, nuts)
-• Foods rich in antioxidants (berries, leafy greens)
-
-**Foods to Limit or Avoid:**
-• Excessive salt (can cause fluid retention)
-• Processed and fried foods
-• Carbonated beverages (can cause bloating)
-• Large meals (eat smaller, frequent meals instead)
-• Foods that cause gas (beans, cabbage, onions)
-
-**Additional Tips:**
-• Stay well-hydrated
-• Maintain a healthy weight
-• Consider nutritional supplements if recommended by your doctor
-• Eat slowly and in a relaxed environment
-
-A balanced diet helps maintain energy levels and supports immune function.`;
-    }
-
-    if (lowerMessage.includes("improve lung") || lowerMessage.includes("lung health")) {
-      return `Here are evidence-based strategies to improve lung health with COPD:
-
-**1. Quit Smoking**
-• The single most important step
-• Slows disease progression significantly
-• Improves lung function over time
-
-**2. Breathing Exercises**
-• Pursed-lip breathing
-• Diaphragmatic breathing
-• These help clear airways and improve oxygen intake
-
-**3. Pulmonary Rehabilitation**
-• Structured program combining exercise, education, and support
-• Proven to improve symptoms and quality of life
-
-**4. Medication Adherence**
-• Take prescribed bronchodilators regularly
-• Use inhalers correctly (ask for demonstration if needed)
-• Don't skip doses
-
-**5. Avoid Irritants**
-• Stay away from secondhand smoke
-• Minimize exposure to air pollution and chemical fumes
-• Use air purifiers at home if needed
-
-**6. Stay Active**
-• Regular physical activity strengthens respiratory muscles
-• Helps prevent muscle wasting
-
-**7. Get Vaccinated**
-• Annual flu vaccine
-• Pneumonia vaccine
-• COVID-19 vaccination
-
-**8. Manage Stress**
-• Practice relaxation techniques
-• Join support groups
-• Consider counseling if needed
-
-Regular follow-up with your healthcare team is essential to monitor progress and adjust treatment as needed.`;
-    }
-
-    if (lowerMessage.includes("treatment") || lowerMessage.includes("medication") || lowerMessage.includes("therapy")) {
-      return `COPD treatment typically involves a combination of therapies tailored to disease severity:
-
-**Bronchodilators**
-• Short-acting (rescue inhalers): for quick relief
-• Long-acting: for daily maintenance
-• Help relax airway muscles and improve breathing
-
-**Inhaled Corticosteroids**
-• Reduce airway inflammation
-• Often combined with bronchodilators
-• Used in moderate to severe COPD
-
-**Combination Inhalers**
-• Contain both bronchodilators and steroids
-• Convenient single-device option
-
-**Oral Medications**
-• Theophylline: helps relax airways
-• Phosphodiesterase-4 inhibitors: reduce inflammation
-
-**Oxygen Therapy**
-• For patients with low blood oxygen levels
-• Improves survival and quality of life
-• May be needed during activity or continuously
-
-**Pulmonary Rehabilitation**
-• Supervised exercise program
-• Education and breathing techniques
-• Nutritional counseling
-
-**Surgical Options** (severe cases)
-• Lung volume reduction surgery
-• Bullectomy
-• Lung transplant (very severe cases)
-
-**Antibiotics**
-• Used during exacerbations or infections
-• Not for routine use
-
-Your treatment plan should be personalized based on your severity level${severityLevel ? ` (currently ${severityLevel})` : ""}, symptoms, and overall health. Regular follow-up with your pulmonologist is crucial to optimize treatment.`;
-    }
-
-    if (lowerMessage.includes("symptom") || lowerMessage.includes("signs")) {
-      return `Common COPD symptoms include:
-
-**Primary Symptoms:**
-• Chronic cough (often called "smoker's cough")
-• Shortness of breath, especially during physical activities
-• Wheezing
-• Chest tightness
-• Excessive mucus production
-
-**Progressive Symptoms:**
-• Fatigue and low energy
-• Frequent respiratory infections
-• Unintended weight loss (in advanced stages)
-• Swelling in ankles, feet, or legs
-
-**Warning Signs of Exacerbation:**
-• Worsening shortness of breath
-• Change in mucus color or amount
-• Increased cough frequency
-• Fever
-• Confusion or difficulty concentrating
-
-If you experience severe symptoms like bluish lips/fingernails, rapid heartbeat, or severe difficulty breathing, seek immediate medical attention.
-
-Regular monitoring and early intervention for exacerbations can prevent serious complications.`;
-    }
-
-    if (lowerMessage.includes("severity") || lowerMessage.includes("stage")) {
-      return `COPD severity is classified into four stages based on lung function (FEV1% predicted):
-
-**Stage 1 - Mild COPD**
-• FEV1 ≥ 80% of predicted
-• Mild airflow limitation
-• Often undiagnosed, minimal symptoms
-
-**Stage 2 - Moderate COPD**
-• FEV1: 50-79% of predicted
-• Worsening airflow limitation
-• Symptoms during physical activity
-• Medical intervention recommended
-
-**Stage 3 - Severe COPD**
-• FEV1: 30-49% of predicted
-• Severe airflow limitation
-• Significant impact on quality of life
-• Frequent exacerbations
-
-**Stage 4 - Very Severe COPD**
-• FEV1 < 30% of predicted
-• Very severe airflow limitation
-• Life-threatening, may need oxygen therapy
-• Chronic respiratory failure risk
-
-${severityLevel ? `Based on your assessment, you have ${severityLevel} COPD. ` : ""}
-The GOLD (Global Initiative for Chronic Obstructive Lung Disease) classification also considers symptom burden and exacerbation history to guide treatment decisions.`;
-    }
-
-    if (lowerMessage.includes("prevent") || lowerMessage.includes("progression")) {
-      return `To prevent COPD progression and maintain lung function:
-
-**Critical Steps:**
-1. **Stop Smoking Immediately** - Most important factor in slowing disease progression
-2. **Take Medications as Prescribed** - Consistent use prevents exacerbations
-3. **Attend Pulmonary Rehabilitation** - Improves outcomes significantly
-
-**Lifestyle Modifications:**
-• Avoid air pollution, dust, and chemical fumes
-• Practice good hand hygiene to prevent infections
-• Get adequate rest and manage stress
-• Maintain a healthy weight
-• Stay physically active within your limits
-
-**Preventive Healthcare:**
-• Get vaccinated (flu, pneumonia, COVID-19)
-• Regular check-ups with your pulmonologist
-• Monitor symptoms and report changes early
-• Have an action plan for exacerbations
-
-**Home Environment:**
-• Use air purifiers
-• Ensure good ventilation
-• Avoid strong perfumes and cleaning products
-• Keep indoor humidity at appropriate levels
-
-Early intervention and consistent disease management can significantly slow COPD progression and improve quality of life.`;
-    }
-
-    // Default response
-    return `Thank you for your question. While I can provide general information about COPD, I recommend discussing specific medical concerns with your healthcare provider. 
-
-I can help you with information about:
-• COPD symptoms and stages
-• Treatment options and medications
-• Lifestyle modifications
-• Exercise and nutrition
-• Disease management strategies
-
-Please feel free to ask any specific questions, or try one of the suggested questions below!`;
+  const buildPatientContext = (): string => {
+    if (!detectionResult) return "";
+    let ctx =
+      `Diagnosis: ${detectionResult.diagnosis} | Confidence: ${detectionResult.confidence}%` +
+      ` | Emphysema: ${detectionResult.emphysemaProb}% | Normal: ${detectionResult.normalProb}%` +
+      ` | Other: ${detectionResult.otherProb}%`;
+    if (detectionResult.severity) ctx += ` | Severity: ${detectionResult.severity}`;
+    if (severityResult?.severity) ctx += ` | Severity Level: ${severityResult.severity}`;
+    return ctx;
   };
 
   const handleSend = async () => {
@@ -323,21 +77,42 @@ Please feel free to ask any specific questions, or try one of the suggested ques
     };
 
     setMessages((prev) => [...prev, userMessage]);
+    const question = input;
     setInput("");
     setIsTyping(true);
 
-    // Simulate AI response delay
-    setTimeout(() => {
+    try {
+      const res = await fetch("/rag/ask", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          question,
+          k: 3,
+          patient_context: buildPatientContext(),
+        }),
+      });
+
+      const data = await res.json();
       const aiResponse: Message = {
         id: (Date.now() + 1).toString(),
         role: "assistant",
-        content: generateResponse(input),
+        content: data.answer || "No answer returned.",
         timestamp: new Date(),
       };
-
       setMessages((prev) => [...prev, aiResponse]);
+    } catch {
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: (Date.now() + 1).toString(),
+          role: "assistant",
+          content: "Error: could not reach the server. Make sure the backend is running.",
+          timestamp: new Date(),
+        },
+      ]);
+    } finally {
       setIsTyping(false);
-    }, 1000 + Math.random() * 1000);
+    }
   };
 
   const handleSuggestedQuestion = (question: string) => {

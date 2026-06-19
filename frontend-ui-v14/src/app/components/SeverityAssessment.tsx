@@ -1,6 +1,29 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router";
 import { Activity, AlertTriangle, CheckCircle2, Info } from "lucide-react";
+
+const SEV_LABEL_MAP: Record<string, "Mild" | "Moderate" | "Severe" | "Very Severe"> = {
+  MILD: "Mild", MODERATE: "Moderate", SEVERE: "Severe", "VERY SEVERE": "Very Severe",
+};
+
+const SEVERITY_INFO: Record<string, { description: string; recommendation: string }> = {
+  Mild: {
+    description: "Mild airflow limitation with minimal symptoms.",
+    recommendation: "Lifestyle modifications, smoking cessation, and regular monitoring recommended. Annual spirometry tests advised.",
+  },
+  Moderate: {
+    description: "Moderate airflow limitation with worsening symptoms.",
+    recommendation: "Regular monitoring and smoking cessation are strongly recommended. Consider bronchodilator therapy and pulmonary rehabilitation.",
+  },
+  Severe: {
+    description: "Severe airflow limitation significantly affecting quality of life.",
+    recommendation: "Intensive treatment required. Combination bronchodilator therapy, pulmonary rehabilitation, and close medical supervision essential.",
+  },
+  "Very Severe": {
+    description: "Very severe airflow limitation with potential respiratory failure risk.",
+    recommendation: "Urgent medical attention required. Consider oxygen therapy, intensive pharmacological treatment, and potential surgical interventions.",
+  },
+};
 import { Card } from "./ui/card";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
@@ -44,6 +67,7 @@ export function SeverityAssessment() {
   });
   const [result, setResult] = useState<SeverityResult | null>(null);
   const [isCalculating, setIsCalculating] = useState(false);
+  const [calcError, setCalcError] = useState<string | null>(null);
 
   useEffect(() => {
     // Load detection result from session storage
@@ -66,47 +90,53 @@ export function SeverityAssessment() {
     }
   }, []);
 
-  const handleCalculate = () => {
+  const handleCalculate = async () => {
     setIsCalculating(true);
+    setCalcError(null);
 
-    setTimeout(() => {
-      // Mock severity calculation based on FEV1Pred
-      const fev1PredValue = parseFloat(severityInfo.fev1Pred) || 0;
-      const catScoreValue = parseFloat(severityInfo.catScore) || 0;
-      
-      let severity: "Mild" | "Moderate" | "Severe" | "Very Severe" = "Mild";
-      let description = "";
-      let recommendation = "";
+    try {
+      // Retrieve age from patientInfo saved by Detection page, default 60
+      const patientInfo = JSON.parse(sessionStorage.getItem("patientInfo") || "{}");
+      const age = parseFloat(patientInfo.age) || 60;
 
-      if (fev1PredValue >= 80) {
-        severity = "Mild";
-        description = "Mild airflow limitation with minimal symptoms.";
-        recommendation = "Lifestyle modifications, smoking cessation, and regular monitoring recommended. Annual spirometry tests advised.";
-      } else if (fev1PredValue >= 50) {
-        severity = "Moderate";
-        description = "Moderate airflow limitation with worsening symptoms.";
-        recommendation = "Regular monitoring and smoking cessation are strongly recommended. Consider bronchodilator therapy and pulmonary rehabilitation.";
-      } else if (fev1PredValue >= 30) {
-        severity = "Severe";
-        description = "Severe airflow limitation significantly affecting quality of life.";
-        recommendation = "Intensive treatment required. Combination bronchodilator therapy, pulmonary rehabilitation, and close medical supervision essential.";
-      } else {
-        severity = "Very Severe";
-        description = "Very severe airflow limitation with potential respiratory failure risk.";
-        recommendation = "Urgent medical attention required. Consider oxygen therapy, intensive pharmacological treatment, and potential surgical interventions.";
-      }
+      const res = await fetch("/severity/predict", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          AGE:          age,
+          PackHistory:  parseFloat(severityInfo.packHistory)  || 0,
+          FEV1:         parseFloat(severityInfo.fev1)         || 0,
+          FEV1PRED:     parseFloat(severityInfo.fev1Pred)     || 0,
+          FVC:          0,
+          FVCPRED:      0,
+          MWT1Best:     parseFloat(severityInfo.mwt1Best)     || 0,
+          CAT:          parseFloat(severityInfo.catScore)     || 0,
+          HAD:          0,
+          SGRQ:         parseFloat(severityInfo.sgrqScore)    || 0,
+          gender:       0,
+          smoking:      0,
+          Diabetes:     severityInfo.diabetes     === "yes" ? 1 : 0,
+          muscular:     0,
+          hypertension: severityInfo.hypertension === "yes" ? 1 : 0,
+          AtrialFib:    severityInfo.atrialFibrillation  === "yes" ? 1 : 0,
+          IHD:          severityInfo.ischemicHeartDisease === "yes" ? 1 : 0,
+        }),
+      });
 
-      // Adjust severity based on CAT score
-      if (catScoreValue >= 20 && severity === "Mild") {
-        severity = "Moderate";
-      }
+      if (!res.ok) throw new Error(`Server error: ${res.status}`);
+      const data = await res.json();
 
-      setResult({ severity, description, recommendation });
+      const severity = SEV_LABEL_MAP[data.severity] ?? "Mild";
+      const { description, recommendation } = SEVERITY_INFO[severity];
+      const severityResult = { severity, description, recommendation };
+
+      setResult(severityResult);
+      sessionStorage.setItem("severityResult", JSON.stringify(severityResult));
+    } catch (err: any) {
+      setCalcError(err.message ?? "Could not reach the server.");
+    } finally {
       setIsCalculating(false);
-      
-      // Store result in session storage
-      sessionStorage.setItem("severityResult", JSON.stringify({ severity, description, recommendation }));
-    }, 1500);
+    }
   };
 
   const handleContinue = () => {
@@ -363,6 +393,10 @@ export function SeverityAssessment() {
               </RadioGroup>
             </div>
           </div>
+
+          {calcError && (
+            <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-4 py-3 mt-6">{calcError}</p>
+          )}
 
           <Button
             className="w-full mt-8 bg-gradient-to-r from-blue-500 to-teal-500 hover:from-blue-600 hover:to-teal-600"

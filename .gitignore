@@ -1,4 +1,4 @@
-﻿# Secrets
+# Secrets
 .env
 
 # Python cache
@@ -11,12 +11,11 @@ __pycache__/
 venv/
 env/
 
-# Large model weights (download separately)
-*.pth
+# Large model weights — keep saved_models/ but exclude notebook experiments
 notebooks/saved_models/
+notebooks/*.pth
 
-# ChromaDB vector database (rebuild with: python scripts/seed_gold_db.py)
-gold_db/
+# ChromaDB — include gold_db/ so deployment works without rebuilding
 src/gold_db/
 
 # Large data files
@@ -28,3 +27,7 @@ data/GOLD-2025.pdf
 # OS
 .DS_Store
 Thumbs.db
+
+# Node
+node_modules/
+frontend-ui-v14/node_modules/
