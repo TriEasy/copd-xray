@@ -1,8 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { Outlet, Link, useLocation } from "react-router";
-import { Send, X, MessageCircle } from "lucide-react";
-import { ImageWithFallback } from "@/app/components/figma/ImageWithFallback";
-import logoImg from "@/imports/Copilot_20260609_143351.png";
+import { Send, X } from "lucide-react";
 
 // Floating general assistant chat state
 interface ChatMsg {
@@ -270,12 +268,11 @@ export function Root() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-20">
             {/* Logo */}
-            <Link to="/" className="flex items-center">
-              <ImageWithFallback
-                src={logoImg}
-                alt="COPD Vision logo"
-                className="h-16 w-auto object-contain"
-              />
+            <Link to="/" className="flex items-center gap-2">
+              <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-blue-600 to-teal-500 flex items-center justify-center flex-shrink-0">
+                <span className="text-white font-bold text-sm">CV</span>
+              </div>
+              <span className="text-xl font-bold text-[#2d3e8f]">COPD Vision</span>
             </Link>
 
             {/* Navigation */}
