@@ -15,8 +15,12 @@ env/
 notebooks/saved_models/
 notebooks/*.pth
 
-# ChromaDB — include gold_db/ so deployment works without rebuilding
+# ChromaDB — rebuilt by scripts/seed_gold_db.py, not tracked in git
+gold_db/
 src/gold_db/
+
+# PDF source documents — add manually to deployment
+data/*.pdf
 
 # Large data files
 data/GOLD-2025.pdf

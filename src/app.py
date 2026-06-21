@@ -37,10 +37,15 @@ SEVERITY_FEATURES = [
 ]
 
 # ── Request models ─────────────────────────────────────────────────────────────
+class ChatMessage(BaseModel):
+    role: str     # "user" or "assistant"
+    content: str
+
 class Question(BaseModel):
     question: str
     k: int = 3
     patient_context: str = ""
+    history: list[ChatMessage] = []
 
 class SeverityInput(BaseModel):
     AGE: float
@@ -82,7 +87,8 @@ async def predict(file: UploadFile = File(...)):
 @app.post("/rag/ask")
 def rag_ask(body: Question):
     try:
-        answer, chunks = query_rag(body.question, k=body.k, patient_context=body.patient_context)
+        history = [{"role": m.role, "content": m.content} for m in body.history]
+        answer, chunks = query_rag(body.question, k=body.k, patient_context=body.patient_context, history=history)
         return {
             "question"   : body.question,
             "answer"     : answer,

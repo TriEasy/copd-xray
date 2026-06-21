@@ -64,10 +64,15 @@ function FloatingDoctor() {
     // Everything else → real RAG call
     setIsTyping(true);
     try {
+      const history = messages.slice(-6).map((m: ChatMsg) => ({
+        role: m.role === "bot" ? "assistant" : "user",
+        content: m.text,
+      }));
+
       const res = await fetch("/rag/ask", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ question: text, k: 3, patient_context: "" }),
+        body: JSON.stringify({ question: text, k: 3, patient_context: "", history }),
       });
       const data = await res.json();
       setMessages((prev) => [...prev, {

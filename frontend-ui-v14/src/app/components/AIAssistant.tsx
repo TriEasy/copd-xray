@@ -82,6 +82,11 @@ export function AIAssistant() {
     setIsTyping(true);
 
     try {
+      const history = messages.slice(-6).map((m) => ({
+        role: m.role === "assistant" ? "assistant" : "user",
+        content: m.content,
+      }));
+
       const res = await fetch("/rag/ask", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -89,6 +94,7 @@ export function AIAssistant() {
           question,
           k: 3,
           patient_context: buildPatientContext(),
+          history,
         }),
       });
 

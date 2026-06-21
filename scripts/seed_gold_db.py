@@ -1,22 +1,29 @@
 """
-Run this once to populate the ChromaDB vector database from the GOLD-2025 guidelines PDF.
+Run this once to populate the ChromaDB vector database from all PDFs in data/.
 
 Usage (from the copd-xray/ directory):
     python scripts/seed_gold_db.py
 """
 
 import os
+import re
 import sys
 import chromadb
 import PyPDF2
-from sentence_transformers import SentenceTransformer
+import numpy as np
+from dotenv import load_dotenv
+from openai import OpenAI
+
+load_dotenv()
 
 BASE       = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-PDF_PATH   = os.path.join(BASE, "data", "GOLD-2025.pdf")
+DATA_DIR   = os.path.join(BASE, "data")   # all PDFs here are loaded
 DB_PATH    = os.path.join(BASE, "gold_db")
 COLLECTION = "gold_guidelines"
-CHUNK_SIZE = 500
-OVERLAP    = 50
+EMBED_MODEL          = "text-embedding-3-small"
+SIMILARITY_THRESHOLD = 0.75  # split when cosine similarity drops below this
+
+_openai = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 
 def load_pdf(path: str) -> str:
@@ -31,13 +38,45 @@ def load_pdf(path: str) -> str:
     return text
 
 
+def embed(texts: list[str]) -> list[list[float]]:
+    """Embed a list of texts using OpenAI text-embedding-3-small."""
+    # OpenAI API accepts max 2048 inputs per call — batch if needed
+    all_vectors = []
+    batch_size  = 500
+    for i in range(0, len(texts), batch_size):
+        batch    = texts[i : i + batch_size]
+        response = _openai.embeddings.create(model=EMBED_MODEL, input=batch)
+        all_vectors += [item.embedding for item in response.data]
+        print(f"  Embedded {min(i + batch_size, len(texts))}/{len(texts)}")
+    return all_vectors
+
+
+def cosine_sim(a, b):
+    a, b = np.array(a), np.array(b)
+    return np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b) + 1e-10)
+
+
 def split_into_chunks(text: str) -> list[str]:
-    chunks = []
-    start  = 0
-    while start < len(text):
-        chunks.append(text[start : start + CHUNK_SIZE])
-        start += CHUNK_SIZE - OVERLAP
-    print(f"Created {len(chunks):,} chunks (size={CHUNK_SIZE}, overlap={OVERLAP})")
+    sentences = [s.strip() for s in re.split(r"(?<=[.!?])\s+|\n{2,}", text) if s.strip()]
+    print(f"Embedding {len(sentences):,} sentences for semantic splitting...")
+
+    embeddings = embed(sentences)
+
+    chunks  = []
+    current = [sentences[0]]
+
+    for i in range(1, len(sentences)):
+        sim = cosine_sim(embeddings[i - 1], embeddings[i])
+        if sim < SIMILARITY_THRESHOLD:
+            chunks.append(" ".join(current))
+            current = [sentences[i]]
+        else:
+            current.append(sentences[i])
+
+    if current:
+        chunks.append(" ".join(current))
+
+    print(f"Created {len(chunks):,} semantic chunks (threshold={SIMILARITY_THRESHOLD})")
     return chunks
 
 
@@ -53,25 +92,37 @@ def seed(chunks: list[str]):
         print(f"Collection already has {collection.count():,} chunks — skipping.")
         return
 
-    print("Loading embedding model (all-MiniLM-L6-v2)...")
-    model      = SentenceTransformer("all-MiniLM-L6-v2")
+    print(f"Embedding {len(chunks):,} chunks with OpenAI {EMBED_MODEL}...")
+    embeddings = embed(chunks)
 
-    print("Embedding chunks — this takes about 1 minute...")
-    embeddings = model.encode(chunks, show_progress_bar=True).tolist()
-
-    collection.add(
-        documents  = chunks,
-        embeddings = embeddings,
-        ids        = [f"chunk_{i}" for i in range(len(chunks))],
-    )
+    batch_size = 5000
+    for i in range(0, len(chunks), batch_size):
+        collection.add(
+            documents  = chunks[i : i + batch_size],
+            embeddings = embeddings[i : i + batch_size],
+            ids        = [f"chunk_{j}" for j in range(i, min(i + batch_size, len(chunks)))],
+        )
+        print(f"  Stored {min(i + batch_size, len(chunks))}/{len(chunks)} chunks")
     print(f"Done — stored {collection.count():,} chunks in {DB_PATH}")
 
 
 if __name__ == "__main__":
-    if not os.path.exists(PDF_PATH):
-        print(f"ERROR: PDF not found at {PDF_PATH}")
+    pdf_files = [f for f in os.listdir(DATA_DIR) if f.lower().endswith(".pdf")]
+    if not pdf_files:
+        print(f"ERROR: No PDF files found in {DATA_DIR}")
         sys.exit(1)
 
-    text   = load_pdf(PDF_PATH)
-    chunks = split_into_chunks(text)
-    seed(chunks)
+    print(f"Found {len(pdf_files)} PDF(s): {pdf_files}")
+
+    all_chunks = []
+    for pdf_file in pdf_files:
+        print(f"\n── Loading: {pdf_file} ──")
+        text = load_pdf(os.path.join(DATA_DIR, pdf_file))
+        if not text.strip():
+            print(f"  SKIPPED — no text found (scanned/image PDF)")
+            continue
+        chunks = split_into_chunks(text)
+        all_chunks.extend(chunks)
+
+    print(f"\nTotal chunks from all PDFs: {len(all_chunks):,}")
+    seed(all_chunks)
