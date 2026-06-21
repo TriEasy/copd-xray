@@ -19,6 +19,36 @@ load_dotenv()
 
 app = FastAPI(title="COPD API", description="Image classification + Severity prediction + RAG")
 
+
+@app.on_event("startup")
+def seed_on_startup():
+    """Seed ChromaDB from PDFs in data/ if the collection is empty."""
+    import chromadb, sys
+    db_path = os.path.join(BASE, "gold_db")
+    try:
+        client = chromadb.PersistentClient(path=db_path)
+        col = client.get_or_create_collection("gold_guidelines")
+        if col.count() > 0:
+            print(f"[startup] ChromaDB already has {col.count():,} chunks — skipping seed.")
+            return
+    except Exception:
+        pass  # DB missing or corrupt — proceed to seed
+
+    data_dir = os.path.join(BASE, "data")
+    pdfs = [f for f in os.listdir(data_dir) if f.lower().endswith(".pdf")] if os.path.isdir(data_dir) else []
+    if not pdfs:
+        print("[startup] No PDFs in data/ — skipping seed.")
+        return
+
+    print(f"[startup] Seeding ChromaDB from {len(pdfs)} PDF(s)...")
+    seed_script = os.path.join(BASE, "scripts", "seed_gold_db.py")
+    import subprocess
+    result = subprocess.run([sys.executable, seed_script], capture_output=True, text=True)
+    if result.returncode == 0:
+        print("[startup] Seeding complete.")
+    else:
+        print(f"[startup] Seeding failed:\n{result.stderr}")
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:5173"],

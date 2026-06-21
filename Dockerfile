@@ -30,13 +30,8 @@ COPY scripts/ ./scripts/
 # React build output (served by FastAPI as static files)
 COPY --from=frontend-builder /frontend/dist ./frontend-dist
 
-# Build ChromaDB from PDFs at image build time
-# OPENAI_API_KEY must be passed as a build arg: --build-arg OPENAI_API_KEY=sk-...
-ARG OPENAI_API_KEY
-ENV OPENAI_API_KEY=$OPENAI_API_KEY
-RUN python scripts/seed_gold_db.py
-
 # HF Spaces requires port 7860
 EXPOSE 7860
 
+# ChromaDB is seeded at first startup (requires OPENAI_API_KEY env var / HF Secret)
 CMD ["uvicorn", "src.app:app", "--host", "0.0.0.0", "--port", "7860"]
